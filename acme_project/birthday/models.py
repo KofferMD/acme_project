@@ -1,5 +1,6 @@
 # birthday/models.py
 from django.db import models
+from django.urls import reverse
 
 
 class Birthday(models.Model):
@@ -17,3 +18,7 @@ class Birthday(models.Model):
                 name='Unique person contraint',
             ),
         )
+
+    def get_absolute_url(self):
+        return reverse("birthday:detail", kwargs={"pk": self.pk})
+    

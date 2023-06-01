@@ -6,8 +6,6 @@
   {% with data=form.instance%}
     {% if '/edit' in request.path %}
       <h1>Редактировать запись {{ data.pk }}</h1>
-    {% elif '/delete' in request.path %}
-      <h1>Удалить запись {{ data.pk }}</h1>
     {% else %}
       <h1>Создать запись</h1>
     {% endif %}
@@ -16,7 +14,7 @@
         Калькулятор ожидания дня рождения
       </div>
       <div class="card-body">
-        <form method="post">
+        <form method="post" enctype="multipart/form-data">
           {% csrf_token %}
           {% if not '/delete/' in request.path %}
             {% bootstrap_form form %}
@@ -28,14 +26,5 @@
         </form>
       </div>
     </div>
-  
-    {% if form.is_valid %}
-      <h2>Привет, {{ data.first_name }}</h2>
-      {% if birthday_countdown == 0 %}
-        С др!
-      {% else %}
-        Осталось дней до дня рождения: {{ birthday_countdown }}
-      {% endif %}
-    {% endif %}
   {% endwith %}
 {% endblock %}
