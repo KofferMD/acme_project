@@ -1,24 +1,26 @@
 from typing import Any, Dict
-from django import http
 from django.forms.models import BaseModelForm
 from django.http import HttpResponse
 from django.http.response import HttpResponse
-from django.shortcuts import get_object_or_404
 from django.views.generic import (
     ListView, CreateView, UpdateView, DeleteView, DetailView)
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.urls import reverse_lazy
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse_lazy, reverse
+from birthday.models import Congratulation
 
 from birthday.models import Birthday
-from birthday.forms import BirthdayForm
+from birthday.forms import BirthdayForm, CongratulationForm
 from birthday.utils import calculate_birthday_countdown
 
 
 class BirthdayListView(ListView):
     model = Birthday
+    queryset = Birthday.objects.prefetch_related(
+        'tag').select_related('author')
     ordering = '-id'
-    paginate_by = 10
-
+    paginate_by = 3
 
 
 class BirthdayMixin:
@@ -61,7 +63,50 @@ class BirthdayDetailView(DetailView):
         context['birthday_countdown'] = calculate_birthday_countdown(
             self.object.birthday
         )
+        # Записываем в переменную form пустой объект формы.
+        context['form'] = CongratulationForm
+        # Запрашиваем все поздравления для выбранного дня рождения.
+        context['congratulations'] = (
+            # Дополнительно подгружаем авторов комментариев,
+            # чтобы избежать множества запросов к БД.
+            self.object.congratulations.select_related('author')
+        )
         return context
+    
+
+class CongratulationCreateView(LoginRequiredMixin, CreateView):
+    birthday = None
+    model = Congratulation
+    form_class = CongratulationForm
+
+    def dispatch(self, request, *args, **kwargs):
+        self.birthday = get_object_or_404(Birthday, pk=kwargs['pk'])
+        return super().dispatch(request, *args, **kwargs)
+    
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        form.instance.birthday = self.birthday
+        return super().form_valid(form)
+
+    def get_success_url(self) -> str:
+        return reverse('birthday:detail', kwargs={'pk': self.birthday.pk})
+
+
+# @login_required
+# def add_comment(request, pk):
+#     birthday = get_object_or_404(Birthday, pk=pk)
+#     form = CongratulationForm(request.POST)
+
+#     if form.is_valid():
+#         # Создаём объект поздравления, но не сохраняем его в БД.
+#         congratulation = form.save(commit=False)
+#         # В поле author передаём объект автора поздравления.
+#         congratulation.author = request.user
+#         # В поле birthday передаём объект дня рождения.
+#         congratulation.birthday = birthday
+#         congratulation.save()
+#     return redirect('birthday:detail', pk=pk)
+
 
 
 
